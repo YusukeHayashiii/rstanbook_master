@@ -1,5 +1,6 @@
 getwd()
 setwd("C:/Users/mem81/Desktop/R_files/rstanbook_master/chap08")
+setwd("C:/Users/s44990/Desktop/R_files/RStanBook-master/chap08")
 library(rstan)
 
 # (1)
@@ -168,3 +169,67 @@ q <- q + geom_rug(data=d_mode, aes(x=X), sides='b')
 q <- q + labs(x='value', y='density')
 q <- q + scale_x_continuous(breaks=seq(from=-4, to=4, by=2))
 q
+
+
+# (4)
+d <- read.csv(file='input/data-attendance-4-2.txt')
+head(d)
+d_person <- tapply(d$Y, d$PersonID, mean)
+class(d_person)
+bw <- (max(d_person)-min(d_person))/30
+p <- ggplot(data=data.frame(X=d_person), aes(X))
+p <- p + geom_histogram(color='grey20', binwidth=bw)
+p <- p + geom_line(eval(bquote(aes(y=..count..*.(bw)))), stat='density')
+p
+
+d_course <- tapply(d$Y, d$CourseID, mean)
+d_course
+bw <- (max(d_course)-min(d_course))/30
+p <- ggplot(data=data.frame(X=d_course), aes(X))
+p <- p + geom_histogram(color='grey20', binwidth=bw)
+p <- p + geom_line(eval(bquote(aes(y=..count..*.(bw)))), stat='density')
+p
+
+
+# (5)
+d1 <- read.csv('input/data-attendance-4-1.txt')
+d2 <- read.csv('input/data-attendance-4-2.txt')
+N <- 50
+C <- 10
+I <- nrow(d2)
+conv <- c(0, 0.2, 1)
+names(conv) <- c('A', 'B', 'C')
+data <- list(N=N, C=C, I=I, A=d1$A,
+            Score=d1$Score/200,
+            PID=d2$PersonID, 
+            CID=d2$CourseID, 
+            W=conv[d2$Weather], 
+            Y=d2$Y)
+fit <- stan(file='exercise/ex5.stan', 
+            data=data,
+            pars=c('b', 'b_P', 'b_C', 's_P', 's_C', 'q'), 
+            seed=1234)
+
+print(fit, pars=c('b', 'b_P', 'b_C'))
+
+## バイオリンプロットで可視化
+ms <- rstan::extract(fit)
+N_mcmc <- length((ms$lp__))
+
+param_names <- c('mcmc', paste0('b', 1:4))
+d_est <- data.frame(1:N_mcmc, ms$b)
+colnames(d_est) <- param_names
+#d_qua <- data.frame.quantile.mcmc(x=param_names[-1], y_mcmc=d_est[,-1])
+
+d_melt <- reshape2::melt(d_est, id=c('mcmc'), variable.name='X')
+d_melt$X <- factor(d_melt$X, levels=rev(levels(d_melt$X)))
+
+dim(d_est)
+
+p <- ggplot()
+p <- p + theme_bw(base_size=18)
+p <- p + coord_flip()
+p <- p + geom_violin(data=d_melt, aes(x=X, y=value), fill='white', color='grey80', size=2, alpha=0.3, scale='width')
+p <- p + labs(x='parameter', y='value')
+p <- p + scale_y_continuous(breaks=seq(from=-2, to=6, by=2))
+p
