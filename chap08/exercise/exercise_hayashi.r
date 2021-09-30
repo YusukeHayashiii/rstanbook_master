@@ -233,3 +233,68 @@ p <- p + geom_violin(data=d_melt, aes(x=X, y=value), fill='white', color='grey80
 p <- p + labs(x='parameter', y='value')
 p <- p + scale_y_continuous(breaks=seq(from=-2, to=6, by=2))
 p
+
+
+# (6)
+
+d <- read.csv("input/data7a.csv")
+head(d)
+dim(d)
+print(unique(d$id))
+
+## モデル式
+
+# Y[n] ~ Binomial(8, q[n])
+# q[n] ~ inv_logit(a[n])
+# a[n] ~ Nromal(a_個体平均, s_a)
+
+## MCMCの実行
+N <- nrow(d)
+M <- 8
+Y <- d$y
+
+data <- list(N=N, M=M, Y=Y)
+# data
+fit <- stan(file="exercise/ex6_hayashi.stan",
+            data = data,
+            seed=1212)
+
+print(fit, pars=c("a0", "q"))
+
+
+# (7)
+d<- read.csv("input/d1.csv")
+head(d)
+dim(d)
+unique(d$pot)
+unique(d$f)
+unique(d$y)
+
+## モデル式
+# n...1:N(個体数), k...1:K(植木鉢数)
+# Y[n] ~ Poisson(lambda[n])
+# lambda[n] ~ exp(a[pot[n]] + b[pot[n]]*F[n])
+# a[k] ~ normal(a0(全体平均), s_a)
+# b[k] = normal(b0(全体平均), s_b)
+
+
+# f列とpotの変換
+d_conv_f <- data.frame(X=c(0, 1))
+rownames(d_conv_f) <- c('C', 'T')
+
+d_conv_pot <- data.frame(X=c(1:10))
+rownames(d_conv_pot) <- c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
+
+data <- list(
+    N=nrow(d),
+    K=length(unique(d$pot)),
+    F=d_conv_f[d$f, ],
+    pot = d_conv_pot[d$pot, ],
+    Y=d$y
+)
+
+fit <- stan(file="exercise/ex7_hayashi.stan",
+            data=data,
+            seed=111)
+
+print(fit, pars=c("b", "c"))
